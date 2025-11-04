@@ -1,13 +1,9 @@
-name: 🔧 Dev Push — Build & Secrets
+name: Dev Push — Build & Secrets
 
 on:
   push:
     branches:
-      - 'feature/**'
-      - 'bugfix/**'
-      - 'hotfix/**'
-      - 'release/**'
-      - 'test/**'
+      - '**' 
   workflow_dispatch: {}
 
 permissions:
@@ -23,25 +19,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
-      - name: Install deps (CI)
-        run: npm ci
-      - name: Build (if exists)
-        run: |
-          if npm run | grep -q "^  build"; then npm run build; else echo "no build script"; fi
-      - name: Unit tests
-        run: |
-          if npm run | grep -q "^  test"; then npm test --silent; else echo "no tests"; fi
+          cache: npm
 
-  secrets:
-    name: Secrets (Gitleaks)
+      - name: Install dependencies (CI)
+        run: npm ci
+
+      - name: Build (if defined)
+        run: |
+          if npm run | grep -q "^  build"; then
+            npm run build
+          else
+            echo "No build script found — skipping build."
+          fi
+
+      - name: Unit tests (if defined)
+        run: |
+          if npm run | grep -q "^  test"; then
+            npm test --silent
+          else
+            echo "No test script found — skipping tests."
+          fi
+
+  secrets_scan:
+    name: Secrets Scan (Gitleaks)
     runs-on: ubuntu-latest
     needs: build_and_test
     steps:
       - uses: actions/checkout@v4
+
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         with:
