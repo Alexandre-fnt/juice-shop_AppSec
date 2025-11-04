@@ -1,0 +1,48 @@
+name: 🔧 Dev Push — Build & Secrets
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
+      - 'release/**'
+      - 'test/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_test:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+      - name: Install deps (CI)
+        run: npm ci
+      - name: Build (if exists)
+        run: |
+          if npm run | grep -q "^  build"; then npm run build; else echo "no build script"; fi
+      - name: Unit tests
+        run: |
+          if npm run | grep -q "^  test"; then npm test --silent; else echo "no tests"; fi
+
+  secrets:
+    name: Secrets (Gitleaks)
+    runs-on: ubuntu-latest
+    needs: build_and_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --no-banner --redact --exit-code 1
