@@ -1,0 +1,26 @@
+name: SCA (Trivy)
+on:
+  pull_request: { branches: [ master ] }
+  push:
+    branches: [ '**' ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+jobs:
+  sca:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: ${{ runner.os }}-trivy-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.os }}-trivy-
+      - name: Install Trivy
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy-archive-keyring.gpg] https://aquasecurity.github.io/trivy-repo/deb stable main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update -y && sudo apt-get install -y trivy
+      - run: trivy fs --security-checks vuln --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed .
